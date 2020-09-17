@@ -1,13 +1,15 @@
 close all;
-U = 20;
-make_movies = 0;
+U = 20;  % U is forward velocity of vehicle in longitudinal direction, [m/s] (rule of thumb: mph ~= 2* m/s)
+make_movies = 1;
 
+% Approximately a Ford Taurus
 vehicle(1).m          = 1031.9; % kg
 vehicle(1).Iz         = 1850; % kg-m^2
-vehicle(1).a          = 0.9271; % meters
-vehicle(1).b          = 1.5621;  % meters
+vehicle(1).a          = 0.9271; % Distance from front axle to CG, in meters
+vehicle(1).b          = 1.5621;  % Distance from rear axle to CG, in meters
 vehicle(1).Caf        = -77500; % N/rad;
 vehicle(1).Car	      = -116250; % N/rad;
+
 
 % vehicle(1).m          = 1670; % kg
 % vehicle(1).Iz         = 2100; % kg-m^2
@@ -16,20 +18,23 @@ vehicle(1).Car	      = -116250; % N/rad;
 % vehicle(1).Caf        = -123200; % N/rad;
 % vehicle(1).Car	      = -104200; % N/rad;
 
+% Core behavior is
+% V: lateral speed
+% r: rotational rate of vehicle around z-axis
 
 %%%%%%% V,r Plot %%%%%%%%%%%%%%%%%
 
 Tfinal = 150;
 clear all_X all_Y all_r all_phi
-for i=1:1
-    i
-    m = vehicle(i).m;
-    Iz = vehicle(i).Iz;
-    a = vehicle(i).a;
-    b = vehicle(i).b;
+for vehicle_i=1:1
+    vehicle_i
+    m = vehicle(vehicle_i).m;
+    Iz = vehicle(vehicle_i).Iz;
+    a = vehicle(vehicle_i).a;
+    b = vehicle(vehicle_i).b;
     L = a+b;
-    Caf = vehicle(i).Caf;
-    Car = vehicle(i).Car;
+    Caf = vehicle(vehicle_i).Caf;
+    Car = vehicle(vehicle_i).Car;
     
     % FILL THIS IN WITH CORRECT TERMS!
     A = [(Caf+Car)/(m*U) (a*Caf-b*Car)/(m*U)-U;
@@ -68,10 +73,10 @@ for i=1:1
     
     
     
-    all_X(:,i) = X;
-    all_Y(:,i) = Y;
-    all_phi(:,i) = phi;
-    all_r(:,i) = r;
+    all_X(:,vehicle_i) = X;
+    all_Y(:,vehicle_i) = Y;
+    all_phi(:,vehicle_i) = phi;
+    all_r(:,vehicle_i) = r;
 end
 %set(gca,'XTick',[0:1:5]);
 %set(gca,'YTick',[0:0.2:2]);
@@ -87,12 +92,12 @@ if make_movies == 1
     set(gcf,'DoubleBuffer','on');
     mov = avifile('3vehicles_lanechange.avi','Quality',100)      
     for j=1:round(length(phi)/100):length(phi)
-        for i=1:3
-            alpha_r(i) = all_phi(j,i)-multiplier*(V(j)-vehicle(i).b*all_r(j,i))/U;
-            bodyx_start(i) = all_X(j,i)+multiplier*vehicle(i).a*cos(alpha_r(i));
-            bodyy_start(i) = all_Y(j,i)+multiplier*vehicle(i).a*sin(alpha_r(i));
-            bodyx_end(i) = all_X(j,i)-multiplier*vehicle(i).b*cos(alpha_r(i));
-            bodyy_end(i) = all_Y(j,i)-multiplier*vehicle(i).b*sin(alpha_r(i));
+        for vehicle_i=1:3
+            alpha_r(vehicle_i) = all_phi(j,vehicle_i)-multiplier*(V(j)-vehicle(vehicle_i).b*all_r(j,vehicle_i))/U;
+            bodyx_start(vehicle_i) = all_X(j,vehicle_i)+multiplier*vehicle(vehicle_i).a*cos(alpha_r(vehicle_i));
+            bodyy_start(vehicle_i) = all_Y(j,vehicle_i)+multiplier*vehicle(vehicle_i).a*sin(alpha_r(vehicle_i));
+            bodyx_end(vehicle_i) = all_X(j,vehicle_i)-multiplier*vehicle(vehicle_i).b*cos(alpha_r(vehicle_i));
+            bodyy_end(vehicle_i) = all_Y(j,vehicle_i)-multiplier*vehicle(vehicle_i).b*sin(alpha_r(vehicle_i));
         end
         plot(all_X(1:j,1),all_Y(1:j,1),'b',...
             all_X(1:j,2),all_Y(1:j,2),'b',...
