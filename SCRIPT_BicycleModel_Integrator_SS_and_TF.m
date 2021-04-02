@@ -10,7 +10,8 @@
 
 % Revision history:
 % 2020_09_17 - rewrite of the movie section for speed
-%
+% 2021_03_31 - cleaned up code for class consumption, moving plotting
+% routine out of calculations so students can see process more clearly
 
 %% Prep the workspace
 close all;  % close all the plots
@@ -37,7 +38,9 @@ N_timeSteps = ceil(TotalTime/deltaT) + 1; % This is the number of time steps we 
 
 flag_make_movies = 1;
 
-%%%%% Fill in the vehicle parameters %%%%%%%%%
+%% Fill in the vehicle parameters. 
+% Use a structure array so we can have several vehicles
+
 % Approximately a Ford Taurus
 vehicle(1).m          = 1031.9; % kg
 vehicle(1).Iz         = 1850; % kg-m^2
@@ -46,7 +49,7 @@ vehicle(1).b          = 1.5621;  % Distance from rear axle to CG, in meters
 vehicle(1).Caf        = -77500; % N/rad;
 vehicle(1).Car	      = -116250; % N/rad;
 
-% A random vehicle
+% A random vehicle (race car tires)
 vehicle(2).m          = 1670; % kg
 vehicle(2).Iz         = 2100; % kg-m^2
 vehicle(2).a          = 0.99; % meters
@@ -54,14 +57,15 @@ vehicle(2).b          = 1.7;  % meters
 vehicle(2).Caf        = -123200; % N/rad;
 vehicle(2).Car	      = -104200; % N/rad;
 
-% A variation on the random vehicle
-vehicle(3).m          = 1670; % kg
-vehicle(3).Iz         = 2100; % kg-m^2
+% A variation on the random vehicle (go-cart like)
+vehicle(3).m          = 167; % kg
+vehicle(3).Iz         = 210; % kg-m^2
 vehicle(3).a          = 0.99; % meters
 vehicle(3).b          = 1.7;  % meters
 vehicle(3).Caf        = -70200; % N/rad;
 vehicle(3).Car	      = -80200; % N/rad;
 
+% The number of vehicles is the length of the structure array
 N_vehicles = length(vehicle);
 
 %% Main code
@@ -80,11 +84,26 @@ N_vehicles = length(vehicle);
 % V: lateral speed
 % r: rotational rate of vehicle around z-axis
 
-% Initialize all the arrays
-all_X = zeros(N_timeSteps,N_vehicles);
-all_Y = zeros(N_timeSteps,N_vehicles);
-all_phi = zeros(N_timeSteps,N_vehicles);
-all_r = zeros(N_timeSteps,N_vehicles);
+% Initialize all the arrays with Not-a-Number (nan). When plotting, any
+% values that are nan will be left empty.
+all_X_ss   = nan(N_timeSteps,N_vehicles);
+all_Y_ss   = nan(N_timeSteps,N_vehicles);
+all_phi_ss = nan(N_timeSteps,N_vehicles);
+all_r_ss   = nan(N_timeSteps,N_vehicles);
+all_V_ss   = nan(N_timeSteps,N_vehicles);
+
+all_X_tf   = nan(N_timeSteps,N_vehicles);
+all_Y_tf   = nan(N_timeSteps,N_vehicles);
+all_phi_tf = nan(N_timeSteps,N_vehicles);
+all_r_tf   = nan(N_timeSteps,N_vehicles);
+all_V_tf   = nan(N_timeSteps,N_vehicles);
+
+all_X_int   = nan(N_timeSteps,N_vehicles);
+all_Y_int   = nan(N_timeSteps,N_vehicles);
+all_phi_int = nan(N_timeSteps,N_vehicles);
+all_r_int   = nan(N_timeSteps,N_vehicles);
+all_V_int   = nan(N_timeSteps,N_vehicles);
+
 
 % Loop through all the vehicles, simulating the trajectory of each within
 % the for loop
@@ -115,47 +134,71 @@ for vehicle_i=1:N_vehicles
     
     % Run the simulation in SIMULINK
     sim('MODEL_BicycleModel_Integrator_SS_and_TF.slx', TotalTime);
-    
-    % Start the plotting. All three of the plots for each situation should
-    % agree with each other (otherwise the equations are not consistent)
+      
 
+    % Save the results in a big array (for plotting in next part)    
+    if length(t) ~= N_timeSteps
+        warning('More time was spent than expected in the simulation. Keeping only the expected time portion.')        
+    end    
+    shorter_index = min(N_timeSteps,length(t));
+    
+    % Fill in the data arrays
+    all_X_ss(1:shorter_index,vehicle_i)   = X_ss(1:shorter_index);
+    all_Y_ss(1:shorter_index,vehicle_i)   = Y_ss(1:shorter_index);
+    all_phi_ss(1:shorter_index,vehicle_i) = phi_ss(1:shorter_index);
+    all_r_ss(1:shorter_index,vehicle_i)   = r_ss(1:shorter_index);
+    all_V_ss(1:shorter_index,vehicle_i)   = V_ss(1:shorter_index);
+
+    all_X_tf(1:shorter_index,vehicle_i)   = X_tf(1:shorter_index);
+    all_Y_tf(1:shorter_index,vehicle_i)   = Y_tf(1:shorter_index);
+    all_phi_tf(1:shorter_index,vehicle_i) = phi_tf(1:shorter_index);
+    all_r_tf(1:shorter_index,vehicle_i)   = r_tf(1:shorter_index);
+    all_V_tf(1:shorter_index,vehicle_i)   = V_tf(1:shorter_index);
+    
+    all_X_int(1:shorter_index,vehicle_i)   = X_int(1:shorter_index);
+    all_Y_int(1:shorter_index,vehicle_i)   = Y_int(1:shorter_index);
+    all_phi_int(1:shorter_index,vehicle_i) = phi_int(1:shorter_index);
+    all_r_int(1:shorter_index,vehicle_i)   = r_int(1:shorter_index);
+    all_V_int(1:shorter_index,vehicle_i)   = V_int(1:shorter_index);
+end
+
+%% Plot the results
+% Start the plotting. All three of the plots for each situation should
+% agree with each other (otherwise the equations are not consistent)
+
+for vehicle_i=1:N_vehicles
     %%%%%%% V,r Plots %%%%%%%%%%%%%%%%%
     h1 = figure(99);
+    hold on;
     set(h1,'Name','Yawrate')
-    plot(t,r,'ro',t,r_int,'b',t,r_tf,'gx'); legend('SS','int','tf');
+    plot(...
+        t,all_r_ss(:,vehicle_i),'ro',...
+        t,all_r_int(:,vehicle_i),'b',...
+        t,all_r_tf(:,vehicle_i),'gx'); 
+    legend('SS','int','tf');
     xlabel('Time (sec)'); ylabel('Yawrate (rad/sec)');
     
     h2 = figure(88);
+    hold on;
     set(h2,'Name','LatVel')
-    plot(t,V,'ro',t,V_int,'b',t,V_tf,'gx'); legend('SS','int','tf');
+    plot(...
+        t,all_V_ss(:,vehicle_i),'ro',...
+        t,all_V_int(:,vehicle_i),'b',...
+        t,all_V_tf(:,vehicle_i),'gx'); 
+    legend('SS','int','tf');
     xlabel('Time (sec)'); ylabel('Lateral Velocity (m/sec)');
     
-    %%%%% The XY Plots %%%%%%%%%%%%
-    % We only plot one of these to keep things clean
+    %%%%% The XY Plots %%%%%%%%%%%%    
     h3 = figure(77);
+    hold on;
     set(h2,'Name','XYposition')
-    plot(X_int,Y_int,'b-');
+    plot(...
+        all_X_ss(:,vehicle_i),all_Y_ss(:,vehicle_i),'ro',...
+        all_X_int(:,vehicle_i),all_Y_int(:,vehicle_i),'b',...
+        all_X_tf(:,vehicle_i),all_Y_tf(:,vehicle_i),'gx'); 
+    legend('SS','int','tf');
     xlabel('X position from all-integrator [m]'); ylabel('Y position from all-integrator model [m]');
-    
-
-    % Save the results in a big array (for plotting in next part)
-    if length(t) ~= N_timeSteps
-        warning('More time was spent than expected in the simulation. Keeping only the expected time portion.')
-        shorter_index = min(N_timeSteps,length(t));
-        all_X(1:shorter_index,vehicle_i) = X(1:shorter_index);
-        all_Y(1:shorter_index,vehicle_i) = Y(1:shorter_index);
-        all_phi(1:shorter_index,vehicle_i) = phi(1:shorter_index);
-        all_r(1:shorter_index,vehicle_i) = r(1:shorter_index);
-
-    else % No need to change the size at all
-        all_X(:,vehicle_i) = X;
-        all_Y(:,vehicle_i) = Y;
-        all_phi(:,vehicle_i) = phi;
-        all_r(:,vehicle_i) = r;
-    end
 end
-
-
 
 %% Make the movies
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
@@ -170,7 +213,7 @@ end
 if flag_make_movies == 1
     
     % Sometimes the movie creation process is interrupted, leaving the file
-    % open from the previous run so we have to close the file first. 
+    % open from the previous run so we might have to close the file first. 
     try
         close(newVid)
     catch
@@ -192,10 +235,10 @@ if flag_make_movies == 1
     
     % Set up the axis to be within the limits of the data. We use a buffer
     % size to give a bit of white space around the plots
-    max_X = max(max(all_X));
-    max_Y = max(max(all_Y));
-    min_X = min(min(all_X));
-    min_Y = min(min(all_Y));
+    max_X = max(max(all_X_int));
+    max_Y = max(max(all_Y_int));
+    min_X = min(min(all_X_int));
+    min_Y = min(min(all_Y_int));
     buffer_spacing = 0.05*(max_X-min_X);
     axis([min_X-buffer_spacing max_X+buffer_spacing min_Y-buffer_spacing max_Y+buffer_spacing]);
     
@@ -213,8 +256,8 @@ if flag_make_movies == 1
     % Prep the plots fill all data with NaN so that nothing plots at first
     % and leaves an empty matrix that, when we fill later causes the plot
     % to be shown.
-    plotted_all_X = all_X*NaN;
-    plotted_all_Y = all_Y*NaN;
+    plotted_all_X = all_X_int*NaN;
+    plotted_all_Y = all_Y_int*NaN;
     h_plot = plot(plotted_all_X(:,1),plotted_all_Y(:,1),'b',...
         plotted_all_X(:,2),plotted_all_Y(:,2),'b',...
         plotted_all_X(:,3),plotted_all_Y(:,3),'b',...
@@ -223,9 +266,9 @@ if flag_make_movies == 1
         NaN*[0;0],NaN*[0;0],'r');
     
     % Put labels on all the vehicles, and save the handles for each
-    h_vehicle_text{1} = text(all_X(1,1),all_Y(1,1),'Vehicle 1');
-    h_vehicle_text{2} = text(all_X(1,2),all_Y(1,2),'Vehicle 2');
-    h_vehicle_text{3} = text(all_X(1,3),all_Y(1,3),'Vehicle 3');
+    h_vehicle_text{1} = text(all_X_int(1,1),all_Y_int(1,1),'Vehicle 1');
+    h_vehicle_text{2} = text(all_X_int(1,2),all_Y_int(1,2),'Vehicle 2');
+    h_vehicle_text{3} = text(all_X_int(1,3),all_Y_int(1,3),'Vehicle 3');
     
     % Calculate how many frames we need for the for loop
     speed_up_ratio = 1;  % How much to speed up the movie relative to real-time. For example, a number 5 here means 5 times faster than real-time
@@ -241,18 +284,18 @@ if flag_make_movies == 1
     for j=1:plot_every:N_timeSteps
         
         % Update the arrays that are plotted
-        plotted_all_X(1:j,:) = all_X(1:j,:);
-        plotted_all_Y(1:j,:) = all_Y(1:j,:);
+        plotted_all_X(1:j,:) = all_X_int(1:j,:);
+        plotted_all_Y(1:j,:) = all_Y_int(1:j,:);
         
         % Draw the vehicles
         for vehicle_i=1:N_vehicles
             
             % Calculate the new vehicle position
-            alpha_r = all_phi(j,vehicle_i)-multiplier_slip*(V(j)-vehicle(vehicle_i).b*all_r(j,vehicle_i))/U;
-            bodyx_start = all_X(j,vehicle_i)+multiplier_size*vehicle(vehicle_i).a*cos(alpha_r);
-            bodyy_start = all_Y(j,vehicle_i)+multiplier_size*vehicle(vehicle_i).a*sin(alpha_r);
-            bodyx_end = all_X(j,vehicle_i)-multiplier_size*vehicle(vehicle_i).b*cos(alpha_r);
-            bodyy_end = all_Y(j,vehicle_i)-multiplier_size*vehicle(vehicle_i).b*sin(alpha_r);
+            alpha_r = all_phi_int(j,vehicle_i)-multiplier_slip*(all_V_int(j,vehicle_i)-vehicle(vehicle_i).b*all_r_int(j,vehicle_i))/U;
+            bodyx_start = all_X_int(j,vehicle_i)+multiplier_size*vehicle(vehicle_i).a*cos(alpha_r);
+            bodyy_start = all_Y_int(j,vehicle_i)+multiplier_size*vehicle(vehicle_i).a*sin(alpha_r);
+            bodyx_end = all_X_int(j,vehicle_i)-multiplier_size*vehicle(vehicle_i).b*cos(alpha_r);
+            bodyy_end = all_Y_int(j,vehicle_i)-multiplier_size*vehicle(vehicle_i).b*sin(alpha_r);
             
             % Update the plots using "set" command, which is MUCH faster
             % than re-plotting
@@ -262,7 +305,7 @@ if flag_make_movies == 1
             set(h_plot(vehicle_i+N_vehicles),'Ydata',[bodyy_start; bodyy_end]);
             
             % Update the text position as well
-            set(h_vehicle_text{vehicle_i},'Position',[all_X(j,vehicle_i),all_Y(j,vehicle_i) 0]);
+            set(h_vehicle_text{vehicle_i},'Position',[all_X_int(j,vehicle_i),all_Y_int(j,vehicle_i) 0]);
             
         end
         
