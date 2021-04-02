@@ -16,6 +16,8 @@
 %% Prep the workspace
 close all;  % close all the plots
 
+flag_make_movies = 1; % Set this flag to 1, and it it makes a movie of results
+
 %% Inputs
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   _____                   _       
@@ -30,13 +32,18 @@ close all;  % close all the plots
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set core simulation inputs: the speed, and steering amplitude
 U = 20;  % U is forward velocity of vehicle in longitudinal direction, [m/s] (rule of thumb: mph ~= 2* m/s)
+
+% Items used to define steering inputs
 steering_amplitude_degrees = 2; % 2 degrees of steering amplitude for input sinewave
 Period = 3; % Units are seconds. A typical lane change is about 3 to 4 seconds based on experimental highway measurements
+
+% Define items used to determine how long to run sim, number of time
+% points, etc.
 TotalTime = 1.5*Period;  % This is how long the simulation will run. Usually 1.5 times the period is enough.
 deltaT = 0.01; % This is the time step of the simulation. See the "Model Settings" submenu in Simulink to see where this variable is used.
 N_timeSteps = ceil(TotalTime/deltaT) + 1; % This is the number of time steps we should have
 
-flag_make_movies = 1;
+
 
 %% Fill in the vehicle parameters. 
 % Use a structure array so we can have several vehicles
@@ -136,10 +143,14 @@ for vehicle_i=1:N_vehicles
     sim('MODEL_BicycleModel_Integrator_SS_and_TF.slx', TotalTime);
       
 
-    % Save the results in a big array (for plotting in next part)    
+    % Save the results in a big array (for plotting in next part) 
+    % Before saving, we need to check if the full vector is shorter than
+    % expected length of N_timeSteps
     if length(t) ~= N_timeSteps
         warning('More time was spent than expected in the simulation. Keeping only the expected time portion.')        
     end    
+
+    % Keep the shorter of either the actual length, or expected length:
     shorter_index = min(N_timeSteps,length(t));
     
     % Fill in the data arrays
@@ -163,11 +174,22 @@ for vehicle_i=1:N_vehicles
 end
 
 %% Plot the results
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   _____  _       _   _   _             
+%  |  __ \| |     | | | | (_)            
+%  | |__) | | ___ | |_| |_ _ _ __   __ _ 
+%  |  ___/| |/ _ \| __| __| | '_ \ / _` |
+%  | |    | | (_) | |_| |_| | | | | (_| |
+%  |_|    |_|\___/ \__|\__|_|_| |_|\__, |
+%                                   __/ |
+%                                  |___/ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Start the plotting. All three of the plots for each situation should
 % agree with each other (otherwise the equations are not consistent)
 
+% Loop through each of the vehicles
 for vehicle_i=1:N_vehicles
-    %%%%%%% V,r Plots %%%%%%%%%%%%%%%%%
+    % Plot the yaw rate
     h1 = figure(99);
     hold on;
     set(h1,'Name','Yawrate')
@@ -176,8 +198,10 @@ for vehicle_i=1:N_vehicles
         t,all_r_int(:,vehicle_i),'b',...
         t,all_r_tf(:,vehicle_i),'gx'); 
     legend('SS','int','tf');
-    xlabel('Time (sec)'); ylabel('Yawrate (rad/sec)');
+    xlabel('Time (sec)'); 
+    ylabel('Yawrate (rad/sec)');
     
+    % Plot the lateral velocity
     h2 = figure(88);
     hold on;
     set(h2,'Name','LatVel')
@@ -186,9 +210,10 @@ for vehicle_i=1:N_vehicles
         t,all_V_int(:,vehicle_i),'b',...
         t,all_V_tf(:,vehicle_i),'gx'); 
     legend('SS','int','tf');
-    xlabel('Time (sec)'); ylabel('Lateral Velocity (m/sec)');
+    xlabel('Time (sec)'); 
+    ylabel('Lateral Velocity (m/sec)');
     
-    %%%%% The XY Plots %%%%%%%%%%%%    
+    % The XY Plots
     h3 = figure(77);
     hold on;
     set(h2,'Name','XYposition')
@@ -197,7 +222,8 @@ for vehicle_i=1:N_vehicles
         all_X_int(:,vehicle_i),all_Y_int(:,vehicle_i),'b',...
         all_X_tf(:,vehicle_i),all_Y_tf(:,vehicle_i),'gx'); 
     legend('SS','int','tf');
-    xlabel('X position from all-integrator [m]'); ylabel('Y position from all-integrator model [m]');
+    xlabel('X position from all-integrator [m]'); 
+    ylabel('Y position from all-integrator model [m]');
 end
 
 %% Make the movies
@@ -209,7 +235,10 @@ end
 %  | |  | | (_| |   <  __/ |  | | | |  __/ |  | | (_) \ V /| |  __/
 %  |_|  |_|\__,_|_|\_\___|_|  |_| |_|\___|_|  |_|\___/ \_/ |_|\___|
 %                                                                  
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+% The following section makes an animation of the vehicles using stick
+% figures
+
 if flag_make_movies == 1
     
     % Sometimes the movie creation process is interrupted, leaving the file
@@ -279,7 +308,7 @@ if flag_make_movies == 1
     multiplier_slip = 10;  % How much to exaggerate the slip angle (so we can better see side-slip)
     multiplier_size = 1; % How much to exaggerate the size of the vehicle (so we can see it on big trajectories)
 
-    % Loop through the data, skipping intervals to get the desired fps and
+    % Loop through the time steps, skipping intervals to get the desired fps and
     % speed-up ratio
     for j=1:plot_every:N_timeSteps
         
